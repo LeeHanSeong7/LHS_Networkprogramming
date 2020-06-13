@@ -1,0 +1,8 @@
+﻿  server.c
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(124,16): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(213,33): warning C4133: '함수': 'WSABUF *'과(와) 'const char *' 사이의 형식이 호환되지 않습니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(354,43): warning C4047: '==': 'SOCKET'의 간접 참조 수준이 'SOCKET *'과(와) 다릅니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(441,17): warning C4553: '==': 식의 결과가 사용되지 않습니다. '='을(를) 의도했습니까?
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(448,20): warning C4553: '==': 식의 결과가 사용되지 않습니다. '='을(를) 의도했습니까?
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(403): warning C4172: 지역 변수 또는 임시: arr의 주소를 반환하고 있습니다.
+  lhs_server.vcxproj -> D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\Debug\lhs_server.exe
