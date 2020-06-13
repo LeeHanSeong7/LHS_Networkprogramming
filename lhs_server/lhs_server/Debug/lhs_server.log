@@ -1,8 +1,17 @@
 ﻿  server.c
 D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(124,16): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
 D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(213,33): warning C4133: '함수': 'WSABUF *'과(와) 'const char *' 사이의 형식이 호환되지 않습니다.
-D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(354,43): warning C4047: '==': 'SOCKET'의 간접 참조 수준이 'SOCKET *'과(와) 다릅니다.
-D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(441,17): warning C4553: '==': 식의 결과가 사용되지 않습니다. '='을(를) 의도했습니까?
-D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(448,20): warning C4553: '==': 식의 결과가 사용되지 않습니다. '='을(를) 의도했습니까?
-D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(403): warning C4172: 지역 변수 또는 임시: arr의 주소를 반환하고 있습니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(312,28): warning C4553: '==': 식의 결과가 사용되지 않습니다. '='을(를) 의도했습니까?
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(334,28): warning C4553: '==': 식의 결과가 사용되지 않습니다. '='을(를) 의도했습니까?
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(348,27): warning C4553: '==': 식의 결과가 사용되지 않습니다. '='을(를) 의도했습니까?
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(387,28): warning C4474: 'sprintf' : 서식 문자열에 전달된 인수가 너무 많습니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(387,28): message : 자리 표시자 및 해당 매개 변수에는 variadic 인수가 0개 필요하지만 1개가 제공되었습니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(423,26): warning C4474: 'sprintf' : 서식 문자열에 전달된 인수가 너무 많습니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(423,26): message : 자리 표시자 및 해당 매개 변수에는 variadic 인수가 0개 필요하지만 1개가 제공되었습니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(463,27): warning C4553: '==': 식의 결과가 사용되지 않습니다. '='을(를) 의도했습니까?
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(464,26): warning C4553: '==': 식의 결과가 사용되지 않습니다. '='을(를) 의도했습니까?
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(535,43): warning C4047: '==': 'SOCKET'의 간접 참조 수준이 'SOCKET *'과(와) 다릅니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(634,17): warning C4553: '==': 식의 결과가 사용되지 않습니다. '='을(를) 의도했습니까?
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(584): warning C4172: 지역 변수 또는 임시: arr의 주소를 반환하고 있습니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(478): warning C4700: 초기화되지 않은 'target' 지역 변수를 사용했습니다.
   lhs_server.vcxproj -> D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\Debug\lhs_server.exe

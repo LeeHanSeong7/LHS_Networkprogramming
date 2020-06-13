@@ -29,6 +29,7 @@
 //
 int g_max_client = MAX_CLI;
 int g_port = 0;
+CRITICAL_SECTION g_CS;
 //
 
 typedef struct user_data {
@@ -60,12 +61,10 @@ void ErrorHandling(char* message);
 
 int u_index(void* data, int target);
 int u_in(USR usr);
-int u_out(USR usr); 
 int* u_state_filter(int state, int room);
 int opr_check(char* buf);
 int r_open();
 
-int user_num = 0;
 USR user_list[MAX_CLI];
 int room_list[MAX_ROOM]; // 유저수 보유, 0이면 없는 방
 
@@ -104,6 +103,8 @@ int main(int argc, char* argv[]) {
 		user_list[i].state = -1;
 	for (i = 0; i < MAX_ROOM; i++)
 		room_list[i] = 0;
+
+	InitializeCriticalSection(&g_CS);
 	//----------//
 
 	//	server socket add	//
@@ -158,6 +159,7 @@ int main(int argc, char* argv[]) {
 	//----------//
 
 	//	term	//
+	DeleteCriticalSection(&g_CS);
 	WSACleanup();
 	return 0;
 	//----------//
@@ -205,8 +207,11 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 				if (u_i == -1) {}	// 유저리스트에 있을때 오류처리
 				else {}
 			}
-			else				//기존유저
+			else {			//기존유저
+				EnterCriticalSection(&g_CS);
 				user = user_list[u_i];
+				LeaveCriticalSection(&g_CS);
+			}
 			//----------------//
 
 			// 유저 메시지 //
@@ -218,8 +223,9 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 					break;
 				case 1:		//종료
 					if (user.state == S_WAIT) {
+						EnterCriticalSection(&g_CS);
 						user_list[u_i].state = S_EMPTY;
-
+						LeaveCriticalSection(&g_CS);
 						strcpy(str, "접속 종료.\n");
 
 						// 송신 //
@@ -235,14 +241,23 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 
 						printf("[%s] 접속 종료\n", user.name);
 					}
-					else
+					else {
 						sprintf(str, "대기실에서 종료 가능, 채팅중이라면 !E, !e로 채팅 종료.\n");
+						// 송신 //
+						memset(&(ioInfo->overlapped), 0, sizeof(OVERLAPPED));
+						ioInfo->wsaBuf.buf = str;
+						ioInfo->wsaBuf.len = strlen(str);
+						ioInfo->rwMode = WRITE;
+						WSASend(sock, &(ioInfo->wsaBuf), 1, NULL, 0, &(ioInfo->overlapped), NULL);
+						//------//
+					}
 
 					break;
 
 				case 2:		//사용자리스트
 					if (user.state == S_WAIT) {	// 대기실
 						strcpy(str, "");
+						EnterCriticalSection(&g_CS);
 						for (i = 0; i < MAX_CLI; i++) {
 							j = user_list[i].state;
 							switch (j) {
@@ -262,15 +277,18 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 								break;
 							}
 						}
+						LeaveCriticalSection(&g_CS);
 						printf("list to [%s]\n", user.name);
 					}
 					else if (user.state == S_CHAT) {	// 채팅중
 						j = 1;
+						EnterCriticalSection(&g_CS);
 						for (i = 0; i < MAX_CLI; i++) {
 							strcpy(str, "\t< ch.%d 참여자 리스트 >\n");
 							if (user_list[i].room == user.room)
 								sprintf(str, "%s%d. [%s]",str, j++, user_list[i].name);
 						}
+						LeaveCriticalSection(&g_CS);
 						printf("list to [%s]\n", user.name);
 					}
 					else
@@ -290,7 +308,9 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 						i = r_open();
 						user.state = S_CHAT;
 						user.room = i;
+						EnterCriticalSection(&g_CS);
 						user_list[u_i] = user;
+						LeaveCriticalSection(&g_CS);
 
 						sprintf(str, "ch.%d 채팅방 생성!\n",i);
 						printf("[%s] open ch.%d\n", user.name,i);
@@ -309,6 +329,7 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 
 				case 4:		//채팅요청 수락
 					if (user.state == S_RECV) {
+						EnterCriticalSection(&g_CS);
 						user_list[u_i].state == S_CHAT;
 						room_list[user.room]++;
 						//방의 인원들에게 알림
@@ -324,13 +345,23 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 							ioInfo->rwMode = WRITE;
 							WSASend(user_list[j].sock, &(ioInfo->wsaBuf), 1, NULL, 0, &(ioInfo->overlapped), NULL);
 						}
+						LeaveCriticalSection(&g_CS);
 					}
-					else
+					else {
 						sprintf(str, "초대를 받았을때만 사용 가능.\n");
+						// 송신 //
+						memset(&(ioInfo->overlapped), 0, sizeof(OVERLAPPED));
+						ioInfo->wsaBuf.buf = str;
+						ioInfo->wsaBuf.len = strlen(str);
+						ioInfo->rwMode = WRITE;
+						WSASend(sock, &(ioInfo->wsaBuf), 1, NULL, 0, &(ioInfo->overlapped), NULL);
+						//------//
+					}
 					break;
 
 				case 5:		//채팅요청 거절
 					if (user.state == S_RECV) {
+						EnterCriticalSection(&g_CS);
 						user_list[u_i].state == S_WAIT;
 						//방의 인원들에게 알림
 						sprintf(str, "[%s]가 초대 거절.\n",user.name);
@@ -346,19 +377,30 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 							WSASend(user_list[j].sock, &(ioInfo->wsaBuf), 1, NULL, 0, &(ioInfo->overlapped), NULL);
 						}
 						user_list[u_i].room == -1;
+						LeaveCriticalSection(&g_CS);
 					}
-					else
+					else {
 						sprintf(str, "초대를 받았을때만 사용 가능.\n");
+						// 송신 //
+						memset(&(ioInfo->overlapped), 0, sizeof(OVERLAPPED));
+						ioInfo->wsaBuf.buf = str;
+						ioInfo->wsaBuf.len = strlen(str);
+						ioInfo->rwMode = WRITE;
+						WSASend(sock, &(ioInfo->wsaBuf), 1, NULL, 0, &(ioInfo->overlapped), NULL);
+						//------//
+					}
 					break;
 
 				case 6:		//채팅 종료
 					if (user.state == S_CHAT) {
+						EnterCriticalSection(&g_CS);
 						user.state = S_WAIT;
 						room_list[user.room]--;
 						user.room = -1;
 						user_list[u_i] = user;
+						LeaveCriticalSection(&g_CS);
 						sprintf(str, "ch.%d 채팅방에서 퇴장!\n", i);
-						printf("[%s] exit from ch.%d\n", user.name, i);
+						printf("[%s] exit from ch.%d\n", user.name, i);\
 					}
 					else
 						sprintf(str, "대기실에서 사용 가능.\n");
@@ -378,7 +420,9 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 					i = u_index(name, 1);
 					if (i == -1) {
 						strcpy(user.name, name);
+						EnterCriticalSection(&g_CS);
 						strcpy(user_list[u_i].name, name);
+						LeaveCriticalSection(&g_CS);
 						sprintf(str, "[%s]에서 [%s]로 이름 변경\n", str, name);
 
 						puts(str);
@@ -396,7 +440,8 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 					break;
 
 				case 8:		//채팅방 리스트
-					strcpy(str, "");
+					strcpy(str, ""); 
+					EnterCriticalSection(&g_CS);
 					for (i = 0; i < MAX_ROOM; i++) {
 						if (room_list[i] != 0) {
 							sprintf(str, "%s <ch.%d>\n", str, i);
@@ -409,6 +454,7 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 							}
 						}
 					}
+					LeaveCriticalSection(&g_CS);
 					// 송신 //
 					memset(&(ioInfo->overlapped), 0, sizeof(OVERLAPPED));
 					ioInfo->wsaBuf.buf = str;
@@ -459,6 +505,7 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 					if (i == -1)
 						sprintf(str, "대상이 없음, 리스트 확인 : !L or !l\n");
 					else {
+						EnterCriticalSection(&g_CS);
 						if (user_list[i].state == S_WAIT) {
 							user_list[i].state == S_RECV;
 							user_list[i].room == user.room;
@@ -482,6 +529,7 @@ DWORD WINAPI EchoThreadMain(LPVOID pComPort){
 							else
 								sprintf(str, "대상의 상태가 확인 안됨\n");
 						}
+						LeaveCriticalSection(&g_CS);
 					}
 
 					// 송신 //
@@ -525,16 +573,24 @@ int u_index(void* data, int target) {
 	int i;
 	switch (target) {
 		case 1:		//name
-			for (i = 0; i < user_num; i++) {
-				if (strcmp(user_list[i].name, (char*)data) == 0)
+			EnterCriticalSection(&g_CS);
+			for (i = 0; i < MAX_CLI; i++) {
+				if (strcmp(user_list[i].name, (char*)data) == 0) {
+					LeaveCriticalSection(&g_CS);
 					return i;
+				}
 			}
+			LeaveCriticalSection(&g_CS);
 			return -1; // 일치되는값 없음
 		case 2:		//sock
-			for (i = 0; i < user_num; i++) {
-				if (user_list[i].sock == (SOCKET*)data)
+			EnterCriticalSection(&g_CS);
+			for (i = 0; i < MAX_CLI; i++) {
+				if (user_list[i].sock == (SOCKET*)data) {
+					LeaveCriticalSection(&g_CS);
 					return i;
-			}	
+				}
+			}
+			LeaveCriticalSection(&g_CS);
 			return -1; // 일치되는값 없음
 		default :
 			return -2; // 타겟없음
@@ -544,23 +600,15 @@ int u_index(void* data, int target) {
 int u_in(USR usr) {
 	int i;
 
-	for (i = 0; i < user_num; i++) {
+	EnterCriticalSection(&g_CS);
+	for (i = 0; i < MAX_CLI; i++) {
 		if (user_list[i].state == S_EMPTY) {
 			user_list[i] = usr;
+			LeaveCriticalSection(&g_CS);
 			return i;
 		}
 	}
-	return -1;
-}
-int u_out(USR usr) {
-	int i;
-
-	for (i = 0; i < user_num; i++) {
-		if (user_list[i].sock == usr.sock) {
-			user_list[i].state = S_EMPTY;
-			return i;
-		}
-	}
+	LeaveCriticalSection(&g_CS);
 	return -1;
 }
 
@@ -570,16 +618,18 @@ int* u_state_filter(int state, int room) {
 	int arr[MAX_CLI+1];
 
 	arr[0] = -1;
+	EnterCriticalSection(&g_CS);
 	if (room == -1) {
-		for (i = 0; i < user_num; i++)
+		for (i = 0; i < MAX_CLI; i++)
 			if (user_list[i].state == state)
 				arr[num++] = i;
 	}
 	else {
-		for (i = 0; i < user_num; i++)
+		for (i = 0; i < MAX_CLI; i++)
 			if (user_list[i].state == state && user_list[i].room == room)
 				arr[num++] = i;
 	}
+	LeaveCriticalSection(&g_CS);
 	arr[num + 1] = -1;
 	return arr;
 }
@@ -628,11 +678,13 @@ int opr_check(char* buf) {
 }
 int r_open() {
 	int i;
-
+	EnterCriticalSection(&g_CS);
 	for(i=0;i< MAX_ROOM;i++)
 		if (room_list[i] == 0) {
-			room_list[i] == 1;
+			room_list[i] == 1; 
+			LeaveCriticalSection(&g_CS);
 			return i;
 		}
+	LeaveCriticalSection(&g_CS);
 	return -1;
 }
