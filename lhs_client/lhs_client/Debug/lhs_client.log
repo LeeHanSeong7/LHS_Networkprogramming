@@ -1,0 +1,9 @@
+﻿  client.c
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\lhs_client\client.c(93,10): warning C4477: 'printf' : 서식 문자열 '%d'에 'int' 형식의 인수가 필요하지만 variadic 인수 1의 형식이 'char *'입니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\lhs_client\client.c(116,28): warning C4996: 'inet_addr': Use inet_pton() or InetPton() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\lhs_client\client.c(81,17): warning C4101: 'k' :참조되지 않은 지역 변수입니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\lhs_client\client.c(81,14): warning C4101: 'j' :참조되지 않은 지역 변수입니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\lhs_client\client.c(81,11): warning C4101: 'i' :참조되지 않은 지역 변수입니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\lhs_client\client.c(82,27): warning C4101: 'flags' :참조되지 않은 지역 변수입니다.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\lhs_client\client.c(82,6): warning C4101: 'recvBytes' :참조되지 않은 지역 변수입니다.
+  lhs_client.vcxproj -> D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\Debug\lhs_client.exe
