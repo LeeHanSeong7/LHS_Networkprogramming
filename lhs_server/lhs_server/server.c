@@ -27,7 +27,7 @@
 //----------//
 
 //	클라로 명령	//
-#define SC_CHAT		"!0"
+#define SC_CHAT		"!7"
 #define SC_EXIST	"!1"
 #define	SC_ITARGET	"!2"
 #define	SC_INVITE	"!3!"
@@ -51,7 +51,7 @@
 	초대 대상 획득			:	!CC_ITARGETname			11	//초대요청후 들어온 이름을 획득.채팅요청에 대한 응답, 초대는 대기중인 상대만 가능*/
 #define	CC_ITARGET	"!2"	
 //	-1은 명령이 아닌걸로 판단 , 일반 대화는 명령 (!CC_CHAT)*/
-#define	CC_CHAT	"!0"
+#define	CC_CHAT	"!7"
 //----------------------//
 
 typedef struct user_data {
@@ -97,11 +97,20 @@ int* u_state_filter(int state, int room);
 int opr_check(char* buf);
 int r_open();
 int ser_send(LPPER_IO_DATA* ioInfo, SOCKET* sock, char* str);
-int make_chat_opr(char* str, char* text) {
+int make_serv_opr(char* str, char* text, char* opr) {
 	char buf[BUF_SIZE];
 	strcpy(buf, text);
-	strcpy(str, SC_CHAT);
+	strcpy(str, opr);
 	strcat(str, buf);
+	return 0;
+}
+int strcut(char* str, int count) {
+	int i;
+	for (i = 0; 1; i++) {
+		str[i] = str[i + count];
+		if (str[i] == '\0')
+			break;
+	}
 	return 0;
 }
 
@@ -123,7 +132,7 @@ int main(int argc, char* argv[]) {
 
 	//	init	//
 	printf("Type port, if you want default port <%d>, type 'Y'or'y' : ", DEF_PORT);
-	scanf("%s",str);
+	gets(str);
 
 	if (strcmp(str, "Y") == 0 || strcmp(str, "y") == 0) {
 		g_port = DEF_PORT;
@@ -231,6 +240,7 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 	WSAEVENT evObj;
 
 	parse_buf = (char*)malloc(sizeof(char) * BUF_SIZE);
+	evObj = WSACreateEvent();
 	while (1) {
 		//이벤트 발생한것을 cp에서 꺼내 인자들에 저장
 		 GetQueuedCompletionStatus(hComPort, &bytesTrans, //complition port를 넘겨줌, 송수신 데이터 크기저장
@@ -262,6 +272,8 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 			{
 				EnterCriticalSection(&g_CS);
 				user_list[u_i].sock = NULL;
+				if (user_list[u_i].state == S_CHAT) 
+					room_list[user_list[u_i].room]--;
 				user_list[u_i].state = S_EMPTY;
 				strcpy(user_list[u_i].name, DEF_NAME);
 				LeaveCriticalSection(&g_CS);
@@ -282,17 +294,20 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 			opr = opr_check(buf);
 			switch (opr) {	//명령어 체크
 			case 0:	//일반 채팅
-				parse_buf = strtok(buf, CC_CHAT);
+				strcpy(parse_buf, buf);
+				strcut(parse_buf, strlen(CC_CHAT));
 				sprintf(str, "[%s] : ", user.name);
 				strcat(str, parse_buf);
+				make_serv_opr(str, str, SC_CHAT);
 				EnterCriticalSection(&g_CS);
 				filter_arr = u_state_filter(S_CHAT, user.room);
 				for (j = 0; j < MAX_CLI + 1; j++) {
-					if (filter_arr[j] == -1)
+					i = filter_arr[j];
+					if (i == -1)
 						break;
-					make_chat_opr(str, str);
-					strcat(str, "\n");
-					ser_send(&ioInfo, &(user_list[i].sock), str);
+					if (u_i != j) {
+						ser_send(&ioInfo, &(user_list[i].sock), str);
+					}
 				}
 				LeaveCriticalSection(&g_CS);
 				free(filter_arr);
@@ -302,6 +317,8 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 				if (user.state == S_WAIT) {
 					EnterCriticalSection(&g_CS);
 					user_list[u_i].sock = NULL;
+					if (user_list[u_i].state == S_CHAT)
+						room_list[user_list[u_i].room]--;
 					user_list[u_i].state = S_EMPTY;
 					LeaveCriticalSection(&g_CS);
 
@@ -311,7 +328,7 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 					printf("[%s] 접속 종료", user.name);
 				}
 				else {
-					make_chat_opr(str, "대기실에서 종료 가능, 채팅중이라면 !E, !e로 채팅 종료.");
+					make_serv_opr(str, "대기실에서 종료 가능, 채팅중이라면 !E, !e로 채팅 종료.", SC_CHAT);
 					// 송신 //
 					ser_send(&ioInfo, &sock, str);
 					//------//
@@ -325,25 +342,26 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 					j = user_list[i].state;
 					switch (j) {
 					case S_WAIT:
-						sprintf(str2, "%s이름 : [%s] , 상태 : 대기실\n", str, user_list[i].name);
-						make_chat_opr(str, str2);
+						sprintf(str2, "이름 : [%s] , 상태 : 대기실\n", user_list[i].name);
+						strcat(str,str2);
 						break;
 					case S_RECV:
-						sprintf(str2, " %s이름 : [%s] , 상태 : 채팅요청수신\n", str, user_list[i].name);
-						make_chat_opr(str, str2);
+						sprintf(str2, " 이름 : [%s] , 상태 : 채팅요청수신\n", user_list[i].name);
+						strcat(str, str2);
 						break;
 					case S_SEND:
-						sprintf(str2, "%s이름 : [%s] , 상태 : 채팅요쳥송신\n", str, user_list[i].name);
-						make_chat_opr(str, str2);
+						sprintf(str2, "이름 : [%s] , 상태 : 채팅요쳥송신\n", user_list[i].name);
+						strcat(str, str2);
 						break;
 					case S_CHAT:
-						sprintf(str2, "%s이름 : [%s] , 상태 : 채팅중(ch:%d)\n", str, user_list[i].name, user_list[i].room);
-						make_chat_opr(str, str2);
+						sprintf(str2, "이름 : [%s] , 상태 : 채팅중(ch:%d)\n", user_list[i].name, user_list[i].room);
+						strcat(str, str2);
 						break;
 					default:
 						break;
 					}
 				}
+				make_serv_opr(str, str,SC_CHAT);
 				LeaveCriticalSection(&g_CS);
 				printf("list to [%s]\n", user.name);
 
@@ -356,7 +374,7 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 				if (user.state == S_WAIT) {
 					i = r_open();
 					if (i == -1)
-						make_chat_opr(str, "최대 채팅방 초과!");
+						make_serv_opr(str, "최대 채팅방 초과!", SC_CHAT);
 					else {
 						user.state = S_CHAT;
 						user.room = i;
@@ -365,21 +383,18 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 						user_list[u_i] = user;
 						LeaveCriticalSection(&g_CS);
 
-						/*sprintf(str, "%s%d", SC_SINFO, S_CHAT);
-						ser_send(&ioInfo, &sock, str);*/
-
-						sprintf(str2, "ch.%d 채팅방 생성!", i);
-						make_chat_opr(str, str2);
+						sprintf(str2, "%dch.%d 채팅방 생성!",S_CHAT, i);
+						make_serv_opr(str, str2, SC_SINFO);
+						puts(str);
+						ser_send(&ioInfo, &sock, str);
 						printf("[%s] open ch.%d\n", user.name, i);
 					}
 				}
 				else {
 					strcpy(str, "채팅방은 대기실 상태에서만 만들수 있습니다.\n");
-					make_chat_opr(str, str);
+					make_serv_opr(str, str, SC_CHAT);
+					ser_send(&ioInfo, &sock, str);
 				}
-				// 송신 //
-				ser_send(&ioInfo, &sock, str);
-				//------//
 				break;
 
 			case 4:		//채팅요청 수락
@@ -387,16 +402,20 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 					EnterCriticalSection(&g_CS);
 					user_list[u_i].state = S_CHAT;
 					room_list[user.room]++;
-					sprintf(str, "%s%d", SC_SINFO, S_CHAT);
-					ser_send(&ioInfo, &sock, str);
 					//방의 인원들에게 알림
-					sprintf(str2, "[%s]가 입장했습니다.", user.name);
-					make_chat_opr(str, str2);
 					filter_arr = u_state_filter(S_CHAT, user.room);
 					for (i = 0; i < MAX_CLI + 1; i++) {
 						j = filter_arr[i];
 						if (j == -1)
 							break;
+						if (u_i == j) {
+							sprintf(str2, "%dch.%d에 입장했습니다.",S_CHAT, user.room);
+							make_serv_opr(str, str2, SC_SINFO);
+						}
+						else {
+							sprintf(str2, "[%s]가 입장했습니다.", user.name);
+							make_serv_opr(str, str2, SC_CHAT);
+						}
 						ser_send(&ioInfo, &(user_list[j].sock), str);
 					}
 					LeaveCriticalSection(&g_CS);
@@ -413,13 +432,19 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 					EnterCriticalSection(&g_CS);
 					user_list[u_i].state = S_WAIT;
 					//방의 인원들에게 알림
-					sprintf(str2, "[%s]가 초대 거절.", user.name);
-					make_chat_opr(str, str2);
 					filter_arr = u_state_filter(S_CHAT, user.room);
 					for (i = 0; i < MAX_CLI + 1; i++) {
 						j = filter_arr[i];
 						if (j == -1)
 							break;
+						if (u_i == j) {
+							sprintf(str2, "%d초대 거절.",S_WAIT);
+							make_serv_opr(str, str2, SC_SINFO);
+						}
+						else {
+							sprintf(str2, "[%s]가 초대 거절.", user.name);
+							make_serv_opr(str, str2, SC_CHAT);
+						}
 						ser_send(&ioInfo, &(user_list[j].sock), str);
 					}
 					user_list[u_i].room = R_EMPTY;
@@ -433,40 +458,37 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 				if (user.state == S_CHAT) {
 					i = user.room;
 					EnterCriticalSection(&g_CS);
+					//방의 인원들에게 알림
+					filter_arr = u_state_filter(S_CHAT, user.room);
+					for (i = 0; i < MAX_CLI + 1; i++) {
+						j = filter_arr[i];
+						if (j == -1)
+							break;
+						if (u_i == j) {
+							sprintf(str2, "%dch.%d 채팅방에서 퇴장!", S_WAIT, user.room);
+							make_serv_opr(str, str2, SC_SINFO);
+						}
+						else {
+							sprintf(str2, "[%s]가 퇴장했습니다.", user.name);
+							make_serv_opr(str, str2, SC_CHAT);
+						}
+						ser_send(&ioInfo, &(user_list[j].sock), str);
+					}
 					user.state = S_WAIT;
 					room_list[user.room]--;
 					user.room = R_EMPTY;
 					user_list[u_i] = user;
 					LeaveCriticalSection(&g_CS);
-					sprintf(str, "%s%d", SC_SINFO, S_WAIT);
-					ser_send(&ioInfo, &sock, str);
-					sprintf(str2, "ch.%d 채팅방에서 퇴장!", i);
-					make_chat_opr(str, str2);
 					printf("[%s] exit from ch.%d\n", user.name, i);
 				}
-				else {
-					if (user.state == S_CHAT) { // 일반 채팅으로 파악
-						filter_arr = u_state_filter(S_CHAT, user.room);
-						EnterCriticalSection(&g_CS);
-						for (j = 0; j < MAX_CLI + 1; j++) {
-							if (filter_arr[j] == -1)
-								break;
-							make_chat_opr(str, str);
-							ser_send(&ioInfo, &(user_list[i].sock), str);
-						}
-						LeaveCriticalSection(&g_CS);
-						free(filter_arr);
-					}
-				}
-
-				// 송신 //
-				ser_send(&ioInfo, &sock, str);
+				else {}
 				//------//
 				break;
 
 			case 7:		//이름 변경
 				strcpy(str, user.name);
-				parse_buf = strtok(buf, CC_NAME);
+				strcpy(parse_buf, buf);
+				strcut(parse_buf, strlen(CC_NAME));
 				if (parse_buf != NULL) {
 					i = u_index(parse_buf, 1);
 					if (i == -1) {
@@ -476,7 +498,7 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 						strcpy(user_list[u_i].name, name);
 						LeaveCriticalSection(&g_CS);
 						sprintf(str2, "[%s]에서 [%s]로 이름 변경", str, name);
-						make_chat_opr(str, str2);
+						make_serv_opr(str, str2, SC_CHAT);
 					}
 					else
 						sprintf(str, "%s", SC_EXIST); //클라에서 처리
@@ -511,7 +533,7 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 				}
 				LeaveCriticalSection(&g_CS);
 				// 송신 //
-				make_chat_opr(str, str);
+				make_serv_opr(str, str, SC_CHAT);
 				ser_send(&ioInfo, &sock, str);
 				//------//
 				break;
@@ -520,7 +542,7 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 				if (user.state == S_CHAT)
 					sprintf(str, SC_ITARGET);
 				else
-					make_chat_opr(str, "채팅방에서 사용 가능.");
+					make_serv_opr(str, "채팅방에서 사용 가능.", SC_CHAT);
 
 				// 송신 //
 				ser_send(&ioInfo, &sock, str);
@@ -532,23 +554,23 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 				switch (i) {
 				case S_WAIT:
 					sprintf(str2, "<내상태>\n이름 : [%s] , 상태 : 대기실", user.name);
-					make_chat_opr(str, str2);
+					make_serv_opr(str, str2, SC_CHAT);
 					break;
 				case S_RECV:
 					sprintf(str2, "<내상태>\n이름 : [%s] , 상태 : 채팅요청수신", user.name);
-					make_chat_opr(str, str2);
+					make_serv_opr(str, str2, SC_CHAT);
 					break;
 				case S_SEND:
 					sprintf(str2, "<내상태>\n이름 : [%s] , 상태 : 채팅요쳥송신", user.name);
-					make_chat_opr(str, str2);
+					make_serv_opr(str, str2, SC_CHAT);
 					break;
 				case S_CHAT:
 					sprintf(str2, "<내상태>\n이름 : [%s] , 상태 : 채팅중(ch:%d)", user.name, user.room);
-					make_chat_opr(str, str2);
+					make_serv_opr(str, str2, SC_CHAT);
 					break;
 				default:
 					sprintf(str2, "<내상태>\n이름 : [%s] , 상태 : 알 수 없음 ", user.name);
-					make_chat_opr(str, str2);
+					make_serv_opr(str, str2, SC_CHAT);
 					break;
 				}
 				puts(str);
@@ -557,34 +579,33 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 
 			case 11:	//초대 대상 이름 획득, 초대 진행
 				sprintf(str2, "%s%%s", SC_ITARGET);
-				parse_buf = strtok(buf, SC_ITARGET);
+				strcpy(parse_buf, buf);
+				strcut(parse_buf, strlen(SC_ITARGET));
 				strcpy(name, parse_buf);
 				i = u_index(name, 1);
-				if (i == -1)
-					make_chat_opr(str, "대상이 없음, 리스트 확인 : !L or !l");
+				if (i == -1) {
+					make_serv_opr(str, "대상이 없음, 리스트 확인 <!L ,!l>", SC_CHAT);
+				}
 				else {
 					EnterCriticalSection(&g_CS);
 					if (user_list[i].state == S_WAIT) {
 						user_list[i].state = S_RECV;
 						user_list[i].room = user.room;
-						sprintf(str, "%s%d", SC_SINFO, S_RECV);
-						ser_send(&ioInfo, &(user_list[i].sock), str);
 
-						sprintf(str2, "%s[%s]가 채팅방 ch.%d로 초대했습니다. (수락: !Y,!y)(거절: !N,!n)", SC_INVITE, name, user.room);
-						make_chat_opr(str, str2);
+						sprintf(str, "%s[%s]가 채팅방 ch.%d로 초대했습니다.", SC_INVITE, user.name, user.room);
 						// 송신 //
 						ser_send(&ioInfo, &(user_list[i].sock), str);
 						//------//
 						sprintf(str2, "[%s]를 ch.%d 로 초대했습니다.", name, user.room);
-						make_chat_opr(str, str2);
+						make_serv_opr(str, str2, SC_CHAT);
 					}
 					else {
 						if (user_list[i].state == S_RECV)
-							make_chat_opr(str, "대상이 먼저 초대받음");
+							make_serv_opr(str, "대상이 먼저 초대받음", SC_CHAT);
 						else if (user_list[i].state == S_CHAT)
-							make_chat_opr(str, "대상이 채팅중");
+							make_serv_opr(str, "대상이 채팅중", SC_CHAT);
 						else
-							make_chat_opr(str, "대상의 상태가 확인 안됨");
+							make_serv_opr(str, "대상의 상태가 확인 안됨", SC_CHAT);
 					}
 					LeaveCriticalSection(&g_CS);
 				}
@@ -599,7 +620,6 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 			//-------------//
 
 			//	유저의 다음 요청	//
-			evObj = WSACreateEvent();
 			ioInfo = (LPPER_IO_DATA)malloc(sizeof(PER_IO_DATA));
 			memset(&(ioInfo->overlapped), 0, sizeof(OVERLAPPED));
 			ioInfo->wsaBuf.len = BUF_SIZE;
@@ -620,7 +640,7 @@ DWORD WINAPI ThreadMain(LPVOID pComPort){
 		}
 		else {
 			puts("message sent!");
-			free(ioInfo);
+			//free(ioInfo);
 		}
 	}
 	free(parse_buf);
@@ -692,8 +712,10 @@ int* u_state_filter(int state, int room) {
 	}
 	else {
 		for (i = 0; i < MAX_CLI; i++)
-			if (user_list[i].state == state && user_list[i].room == room)
+			if (user_list[i].state == state && user_list[i].room == room) {
 				arr[num++] = i;
+				printf("user : %s %d, %d", user_list[i].name, user_list[i].state, user_list[i].room);
+			}
 	}
 	arr[num] = -1;
 	return arr;
@@ -757,10 +779,21 @@ int r_open() {
 }
 
 int ser_send(LPPER_IO_DATA* ioInfo, SOCKET* sock, char* str) {
+	WSAEVENT evObj;
+	evObj = WSACreateEvent();
 	memset(&((*ioInfo)->overlapped), 0, sizeof(OVERLAPPED));
 	(*ioInfo)->wsaBuf.buf = str;
-	(*ioInfo)->wsaBuf.len = BUF_SIZE;
+	(*ioInfo)->wsaBuf.len = strlen(str)+1;
 	(*ioInfo)->rwMode = WRITE;
-	WSASend(*sock, &((*ioInfo)->wsaBuf), 1, NULL, 0, &((*ioInfo)->overlapped), NULL);
+	if (WSASend(*sock, &((*ioInfo)->wsaBuf), 1, NULL, 0, &((*ioInfo)->overlapped), NULL) == SOCKET_ERROR){
+		if (WSAGetLastError() == WSA_IO_PENDING){
+			puts("Background data send");
+			WSAWaitForMultipleEvents(1, &evObj, TRUE, WSA_INFINITE, FALSE);
+			WSAGetOverlappedResult(*sock, &((*ioInfo)->overlapped), NULL, FALSE, NULL);
+		}
+		else{
+			ErrorHandling("WSASend() error");
+		}
+	}
 	return 0;
 }

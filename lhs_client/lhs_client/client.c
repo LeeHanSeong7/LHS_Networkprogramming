@@ -15,14 +15,14 @@
 
 //	TEXT	//
 #define T_EMPTY	""
-#define T_WAIT	"<대기실 명령어> 종료:!Q, 채팅방 개설:!R, 사용자리스트:!L 채팅리스트:!C, 내상태확인:!S ..:"
-#define T_RECV	"수락:!Y, 거절:!N ..:"
+#define T_WAIT	"\n<대기실 명령어> 종료:!Q, 채팅방 개설:!R, 사용자리스트:!L 채팅리스트:!C, 내상태확인:!S \n"
+#define T_RECV	"<수락:!Y, 거절:!N>\n"
 #define T_SEND	""
-#define T_CHAT	"<채팅방 명령어> 채팅종료:!E, 사용자리스트:!L, 내상태확인:!S, 채팅초대:!I ..:"
+#define T_CHAT	"<채팅방 명령어> 채팅종료:!E, 사용자리스트:!L, 내상태확인:!S, 채팅초대:!I\n"
 //----------//
 
 //	서버에서 명령	//
-#define SC_CHAT			"!0"
+#define SC_CHAT			"!7"
 #define SC_EXIST		"!1"
 #define	SC_ITARGET		"!2"
 #define	SC_INVITE		"!3!"
@@ -45,7 +45,7 @@
 	초대 대상 획득			:	!CC_ITARGETname			11	//초대요청후 들어온 이름을 획득.채팅요청에 대한 응답, 초대는 대기중인 상대만 가능*/
 #define	CC_ITARGET	"!2"	
 //	-1은 명령이 아닌걸로 판단 , 일반 대화는 명령 (!CC_CHAT)*/
-#define	CC_CHAT	"!0"
+#define	CC_CHAT	"!7"
 //----------------------//
 
 //state 정의//
@@ -61,12 +61,22 @@ int g_port;
 char g_servip[17];
 char userName[NAME_SIZE];
 CRITICAL_SECTION g_CS;
+char g_send_state[BUF_SIZE] = SC_CHAT; // 전송대상
 ////
 
 void ErrorHandling(char* message);
 int opr_check(char* buf);
 int ser_opr_check(char* buf);
 int print_info(int state);
+int strcut(char* str, int count) {
+	int i;
+	for (i = 0; 1;i++) {
+		str[i] = str[i + count];
+		if (str[i] == '\0')
+			break;
+	}
+	return 0;
+}
 DWORD WINAPI recvThread(SOCKET* sock);
 
 int main() {
@@ -78,22 +88,22 @@ int main() {
 	SOCKET servSock;
 	SOCKADDR_IN servAdr;
 
-	int opr, i, j, k;
-	int recvBytes,sendBytes, flags;
+	int opr;
+	int sendBytes;
 	//	init	//
 	printf("Type IP what you want to connect, if you want default IP <%s>, type 'Y'or'y' : ", DEF_SVRIP);
-	scanf("%s", str);
+	gets(str);
 
 	if (strcmp(str, "Y") == 0 || strcmp(str, "y") == 0) {
 		strcpy(g_servip, DEF_SVRIP);
 		printf("server ip : %s\n", DEF_SVRIP);
 	}
 	else {
-		sscanf(str,"%s\n", g_servip);
-		printf("server ip : %d\n", g_servip);
+		strcpy(str, g_servip);
+		printf("server ip : %s\n", g_servip);
 	}
 	printf("Type port what you want to connect, if you want default port <%d>, type 'Y'or'y' : ", DEF_PORT);
-	scanf("%s", str);
+	gets(str);
 
 	if (strcmp(str, "Y") == 0 || strcmp(str, "y") == 0) {
 		g_port = DEF_PORT;
@@ -129,7 +139,7 @@ int main() {
 		//이름 설정을 보냄//
 		while (1) {
 			printf("type your name : ");
-			scanf("%s", str2);
+			gets(str2);
 			sprintf(str, "%s%s", CC_NAME, str2);
 			sendBytes = send(servSock, str, BUF_SIZE, 0);
 			if (sendBytes == 0)
@@ -142,7 +152,8 @@ int main() {
 					continue;
 				}
 				else {
-					buf = strtok(user_buf, CC_CHAT);
+					strcpy(buf, user_buf);
+					strcut(buf, strlen(SC_CHAT));
 					puts(buf);
 					strcpy(userName, str2);
 					break;
@@ -158,16 +169,20 @@ int main() {
 
 		//	send	//
 		while (1) {
-			scanf("%s", user_buf);
+			gets(user_buf);
 			opr = opr_check(user_buf);
 			if (opr == 0) {//일반 채팅
-				sprintf(str2, "%s%%s", CC_CHAT);
+				EnterCriticalSection(&g_CS);
+				sprintf(str2, "%s%%s", g_send_state);
 				sprintf(str,str2,user_buf);
+				if (strcmp(g_send_state, CC_CHAT) != 0)
+					strcpy(g_send_state, CC_CHAT);
+				LeaveCriticalSection(&g_CS);
 			}
 			else {
 				strcpy(str, user_buf);
 			}
-			sendBytes = send(servSock, str, BUF_SIZE, 0);
+			sendBytes = send(servSock, str, strlen(str)+1 , 0);
 			if (sendBytes == 0) printf("send fail.\n");
 
 			/*EnterCriticalSection(&g_CS);
@@ -256,43 +271,37 @@ DWORD WINAPI recvThread(SOCKET* sock) {
 	char str[BUF_SIZE];
 	int opr, i;
 
+	buf = (char*)malloc(sizeof(char) * BUF_SIZE);
+
 	while (1) {
 		if (recv(*sock, serv_buf, BUF_SIZE, 0) == 0)
-			ErrorHandling("error at server");
+			ErrorHandling("server disconnected");
 		opr = ser_opr_check(serv_buf);
 		switch (opr) {
 		case 0:	//	SC_CHAT
-			buf = strtok(serv_buf, SC_CHAT);
+			strcpy(buf, serv_buf);
+			strcut(buf,strlen(SC_CHAT));
 			puts(buf);
 			break;
 		case 2:	//	SC_ITARGET
 			EnterCriticalSection(&g_CS);
-			while (1) {
-				printf("초대하려는 유저의 이름을 입력해주세요 : ");
-				fflush(stdin);
-				scanf("%s", str);
-				if (strcmp(str, userName) == 0) {
-					printf("자신은 초대할 수 없습니다 : ");
-					continue;
-				}
-				strcpy(buf, CC_ITARGET);
-				strcat(buf, str);
-				i = send(*sock, buf, BUF_SIZE, 0);
-				if (i == 0) printf("send fail.\n");
-			}
+			strcpy(g_send_state,CC_ITARGET);
 			LeaveCriticalSection(&g_CS);
+			printf("초대하려는 유저의 이름을 입력해주세요 : ");
 			break;
 		case 3:	//	SC_INVITE
-			buf = strtok(serv_buf, SC_INVITE);
+			strcpy(buf, serv_buf);
+			strcut(buf, strlen(SC_INVITE));
 			puts(buf);
-			fflush(stdin);
-			scanf("%s", str);
-			i = send(*sock, str, BUF_SIZE, 0);
-			if (i == 0) printf("send fail.\n");
+			print_info(S_RECV);
 			break;
-		case 6:
-			buf = strtok(serv_buf, SC_SINFO);
+		case 6:	// SC_SINFO
+			strcpy(buf, serv_buf);
+			strcut(buf, strlen(SC_SINFO));
 			sscanf(buf,"%d",&i);
+			itoa(i,str,10);
+			strcut(buf, strlen(str));
+			puts(buf);
 			print_info(i);
 			break;
 		default:
@@ -302,4 +311,5 @@ DWORD WINAPI recvThread(SOCKET* sock) {
 		printf("[%s]:",userName);
 		LeaveCriticalSection(&g_CS);*/
 	}
+	free(buf);
 }
