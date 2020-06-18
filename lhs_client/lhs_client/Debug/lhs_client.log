@@ -1,5 +1,5 @@
 ﻿  client.c
 D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\lhs_client\client.c(95,6): warning C4013: 'gets'이(가) 정의되지 않았습니다. extern은 int형을 반환하는 것으로 간주합니다.
 D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\lhs_client\client.c(126,28): warning C4996: 'inet_addr': Use inet_pton() or InetPton() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
-D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\lhs_client\client.c(302,4): warning C4996: 'itoa': The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _itoa. See online help for details.
+D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\lhs_client\client.c(304,4): warning C4996: 'itoa': The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _itoa. See online help for details.
   lhs_client.vcxproj -> D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_client\Debug\lhs_client.exe

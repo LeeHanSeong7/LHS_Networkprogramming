@@ -269,13 +269,15 @@ DWORD WINAPI recvThread(SOCKET* sock) {
 	char serv_buf[BUF_SIZE];
 	char* buf;
 	char str[BUF_SIZE];
-	int opr, i;
+	int opr, i, recB;
 
 	buf = (char*)malloc(sizeof(char) * BUF_SIZE);
 
+	recB = recv(*sock, serv_buf, BUF_SIZE, 0);
 	while (1) {
-		if (recv(*sock, serv_buf, BUF_SIZE, 0) == 0)
+		if (recB == 0)
 			ErrorHandling("server disconnected");
+
 		opr = ser_opr_check(serv_buf);
 		switch (opr) {
 		case 0:	//	SC_CHAT
@@ -310,6 +312,7 @@ DWORD WINAPI recvThread(SOCKET* sock) {
 		EnterCriticalSection(&g_CS);
 		printf("[%s]:",userName);
 		LeaveCriticalSection(&g_CS);*/
+		recB = recv(*sock, serv_buf, BUF_SIZE, 0);
 	}
 	free(buf);
 }

@@ -1,5 +1,1 @@
-﻿  server.c
-D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(135,6): warning C4013: 'gets'이(가) 정의되지 않았습니다. extern은 int형을 반환하는 것으로 간주합니다.
-D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(274,31): warning C4047: '=': 'SOCKET'의 간접 참조 수준이 'void *'과(와) 다릅니다.
-D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\lhs_server\server.c(319,32): warning C4047: '=': 'SOCKET'의 간접 참조 수준이 'void *'과(와) 다릅니다.
-  lhs_server.vcxproj -> D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\Debug\lhs_server.exe
+﻿  lhs_server.vcxproj -> D:\LeeHanSeong\dev\git\LHS_Networkprogramming\lhs_server\Debug\lhs_server.exe
